@@ -86,9 +86,6 @@ public class ApiKeyServiceImpl extends TransactionalService implements ApiKeySer
         try {
             LOGGER.debug("Generate an API Key for subscription {}", subscription);
 
-            if (customApiKey != null && exists(customApiKey)) {
-                throw new ApiKeyAlreadyExistingException();
-            }
             ApiKey apiKey = generateForSubscription(subscription, customApiKey);
             apiKey = apiKeyRepository.create(apiKey);
 
@@ -123,9 +120,6 @@ public class ApiKeyServiceImpl extends TransactionalService implements ApiKeySer
         try {
             LOGGER.debug("Renew API Key for subscription {}", subscription);
 
-            if (customApiKey != null && exists(customApiKey)) {
-                throw new ApiKeyAlreadyExistingException();
-            }
             ApiKey newApiKey = generateForSubscription(subscription, customApiKey);
             newApiKey = apiKeyRepository.create(newApiKey);
 
@@ -194,6 +188,10 @@ public class ApiKeyServiceImpl extends TransactionalService implements ApiKeySer
     private ApiKey generateForSubscription(String subscription, String customApiKey) {
         SubscriptionEntity subscriptionEntity = subscriptionService.findById(subscription);
 
+        if (customApiKey != null && canCreate(customApiKey, subscriptionEntity.getApi(), subscriptionEntity.getApplication())) {
+            throw new ApiKeyAlreadyExistingException();
+        }
+
         Date now = new Date();
         if (subscriptionEntity.getEndingAt() != null && subscriptionEntity.getEndingAt().before(now)) {
             throw new SubscriptionClosedException(subscription);
@@ -216,10 +214,15 @@ public class ApiKeyServiceImpl extends TransactionalService implements ApiKeySer
     }
 
     @Override
-    public void revoke(String apiKey, boolean notify) {
+    public void revoke(ApiKeyEntity apiKeyEntity, boolean notify) {
+        revoke(apiKeyEntity.getKey(), apiKeyEntity.getApi(), notify);
+    }
+
+    @Override
+    public void revoke(String apiKey, String apiId, boolean notify) {
         try {
-            LOGGER.debug("Revoke API Key {}", apiKey);
-            ApiKey key = apiKeyRepository.findByKey(apiKey).orElseThrow(() -> new ApiKeyNotFoundException());
+            LOGGER.debug("Revoke API Key {} for API {}", apiKey, apiId);
+            ApiKey key = apiKeyRepository.findByKeyAndApi(apiKey, apiId).orElseThrow(() -> new ApiKeyNotFoundException());
 
             checkApiKeyExpired(key);
 
@@ -261,10 +264,15 @@ public class ApiKeyServiceImpl extends TransactionalService implements ApiKeySer
     }
 
     @Override
-    public ApiKeyEntity reactivate(String apiKey) {
+    public ApiKeyEntity reactivate(ApiKeyEntity apiKeyEntity) {
+        return reactivate(apiKeyEntity.getKey(), apiKeyEntity.getApi());
+    }
+
+    @Override
+    public ApiKeyEntity reactivate(String apiKey, String apiId) {
         try {
-            LOGGER.debug("Reactivate API Key {}", apiKey);
-            ApiKey key = apiKeyRepository.findByKey(apiKey).orElseThrow(() -> new ApiKeyNotFoundException());
+            LOGGER.debug("Reactivate API Key {} for API {}", apiKey, apiId);
+            ApiKey key = apiKeyRepository.findByKeyAndApi(apiKey, apiId).orElseThrow(() -> new ApiKeyNotFoundException());
 
             if (!key.isRevoked() && !convert(key).isExpired()) {
                 throw new ApiKeyAlreadyActivatedException();
@@ -306,6 +314,17 @@ public class ApiKeyServiceImpl extends TransactionalService implements ApiKeySer
     }
 
     @Override
+    public List<ApiKeyEntity> findByKey(String apiKey) {
+        try {
+            LOGGER.debug("Find API Keys for apiKey {}", apiKey);
+            return apiKeyRepository.findByKey(apiKey).stream().map(ApiKeyServiceImpl::convert).collect(Collectors.toList());
+        } catch (TechnicalException e) {
+            LOGGER.error("An error occurs while finding API keys with key {}", apiKey, e);
+            throw new TechnicalManagementException(String.format("An error occurs while finding API keys with key %s", apiKey), e);
+        }
+    }
+
+    @Override
     public List<ApiKeyEntity> findBySubscription(String subscription) {
         try {
             LOGGER.debug("Find API Keys for subscription {}", subscription);
@@ -327,14 +346,32 @@ public class ApiKeyServiceImpl extends TransactionalService implements ApiKeySer
     }
 
     @Override
-    public ApiKeyEntity findByKey(String apiKey) {
+    public ApiKeyEntity findByKeyAndApi(String apiKey, String apiId) {
         try {
-            LOGGER.debug("Find an API Key by key: {}", apiKey);
-            ApiKey key = apiKeyRepository.findByKey(apiKey).orElseThrow(() -> new ApiKeyNotFoundException());
+            LOGGER.debug("Find an API Key by key {} and API {}", apiKey, apiId);
+            ApiKey key = apiKeyRepository.findByKeyAndApi(apiKey, apiId).orElseThrow(() -> new ApiKeyNotFoundException());
             return convert(key);
         } catch (TechnicalException ex) {
-            LOGGER.error("An error occurs while trying to find an API Key by key {}", apiKey, ex);
-            throw new TechnicalManagementException(String.format("An error occurs while trying to find an API Key by key: %s", apiKey), ex);
+            LOGGER.error("An error occurs while trying to find an API Key by key {} for API {}", apiKey, apiId, ex);
+            throw new TechnicalManagementException(
+                String.format("An error occurs while trying to find an API Key by key %s for API %s", apiKey, apiId),
+                ex
+            );
+        }
+    }
+
+    @Override
+    public ApiKeyEntity findByKeyAndSubscription(String apiKey, String subscriptionId) {
+        try {
+            LOGGER.debug("Find an API Key by key {} and subscription {}", apiKey, subscriptionId);
+            ApiKey key = apiKeyRepository.findByKeyAndSubscription(apiKey, subscriptionId).orElseThrow(() -> new ApiKeyNotFoundException());
+            return convert(key);
+        } catch (TechnicalException ex) {
+            LOGGER.error("An error occurs while trying to find an API Key by key {} for subscriptionId {}", apiKey, subscriptionId, ex);
+            throw new TechnicalManagementException(
+                String.format("An error occurs while trying to find an API Key by key %s for subscriptionId %s", apiKey, subscriptionId),
+                ex
+            );
         }
     }
 
@@ -342,7 +379,9 @@ public class ApiKeyServiceImpl extends TransactionalService implements ApiKeySer
     public ApiKeyEntity update(ApiKeyEntity apiKeyEntity) {
         try {
             LOGGER.debug("Update API Key {}", apiKeyEntity.getKey());
-            ApiKey key = apiKeyRepository.findByKey(apiKeyEntity.getKey()).orElseThrow(() -> new ApiKeyNotFoundException());
+            ApiKey key = apiKeyRepository
+                .findByKeyAndApi(apiKeyEntity.getKey(), apiKeyEntity.getApi())
+                .orElseThrow(() -> new ApiKeyNotFoundException());
 
             checkApiKeyExpired(key);
 
@@ -366,10 +405,15 @@ public class ApiKeyServiceImpl extends TransactionalService implements ApiKeySer
     }
 
     @Override
-    public ApiKeyEntity updateDaysToExpirationOnLastNotification(String apiKey, Integer value) {
+    public ApiKeyEntity updateDaysToExpirationOnLastNotification(ApiKeyEntity apiKeyEntity, Integer value) {
+        return updateDaysToExpirationOnLastNotification(apiKeyEntity.getKey(), apiKeyEntity.getApi(), value);
+    }
+
+    @Override
+    public ApiKeyEntity updateDaysToExpirationOnLastNotification(String apiKey, String apiId, Integer value) {
         try {
             return apiKeyRepository
-                .findByKey(apiKey)
+                .findByKeyAndApi(apiKey, apiId)
                 .map(
                     dbApiKey -> {
                         dbApiKey.setDaysToExpirationOnLastNotification(value);
@@ -393,13 +437,34 @@ public class ApiKeyServiceImpl extends TransactionalService implements ApiKeySer
     }
 
     @Override
-    public boolean exists(String apiKey) {
-        LOGGER.debug("Check if an API Key exists by key: {}", apiKey);
+    public boolean canCreate(String apiKey, String apiId, String applicationId) {
+        LOGGER.debug("Check if an API Key can be create with key {}, for api {} and application {}", apiKey, apiId, applicationId);
         try {
-            return apiKeyRepository.findByKey(apiKey).isPresent();
+            return apiKeyRepository
+                .findByKey(apiKey)
+                .stream()
+                .noneMatch(
+                    existingKey ->
+                        !existingKey.getApplication().equals(applicationId) ||
+                        (existingKey.getApplication().equals(applicationId) && existingKey.getApi().equals(apiId))
+                );
         } catch (TechnicalException ex) {
-            LOGGER.error("An error occurs while checking if API Key {} exists", apiKey, ex);
-            throw new TechnicalManagementException(String.format("An error occurs while checking if API Key %s exists", apiKey), ex);
+            LOGGER.error(
+                "An error occurs while checking if API Key {} can be created for api {} and application {}",
+                apiKey,
+                apiId,
+                applicationId,
+                ex
+            );
+            throw new TechnicalManagementException(
+                String.format(
+                    "An error occurs while checking if API Key %s can be created for api %s and application %s",
+                    apiKey,
+                    apiId,
+                    applicationId
+                ),
+                ex
+            );
         }
     }
 

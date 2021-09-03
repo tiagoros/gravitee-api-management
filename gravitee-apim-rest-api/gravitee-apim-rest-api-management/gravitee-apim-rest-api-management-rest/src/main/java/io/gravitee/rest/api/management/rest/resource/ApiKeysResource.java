@@ -57,7 +57,7 @@ public class ApiKeysResource extends AbstractResource {
     @ApiOperation(value = "Revoke an API key", notes = "User must have the API_SUBSCRIPTION:DELETE permission to use this service")
     @Permissions({ @Permission(value = RolePermission.API_SUBSCRIPTION, acls = RolePermissionAction.DELETE) })
     public Response revokeApiKey(@PathParam("key") @ApiParam("The API key") String apiKey) {
-        apiKeyService.revoke(apiKey, true);
+        apiKeyService.revoke(apiKey, api, true);
 
         return Response.status(Response.Status.NO_CONTENT).build();
     }

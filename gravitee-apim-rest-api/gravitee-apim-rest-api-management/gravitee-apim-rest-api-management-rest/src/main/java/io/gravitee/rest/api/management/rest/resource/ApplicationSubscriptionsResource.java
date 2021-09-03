@@ -250,12 +250,12 @@ public class ApplicationSubscriptionsResource extends AbstractResource {
         @PathParam("subscription") String subscription,
         @PathParam("key") String apiKey
     ) {
-        ApiKeyEntity apiKeyEntity = apiKeyService.findByKey(apiKey);
+        ApiKeyEntity apiKeyEntity = apiKeyService.findByKeyAndSubscription(apiKey, subscription);
         if (apiKeyEntity.getSubscription() != null && !subscription.equals(apiKeyEntity.getSubscription())) {
             return Response.status(Response.Status.BAD_REQUEST).entity("'key' parameter does not correspond to the subscription").build();
         }
 
-        apiKeyService.revoke(apiKey, true);
+        apiKeyService.revoke(apiKeyEntity, true);
 
         return Response.status(Response.Status.NO_CONTENT).build();
     }
