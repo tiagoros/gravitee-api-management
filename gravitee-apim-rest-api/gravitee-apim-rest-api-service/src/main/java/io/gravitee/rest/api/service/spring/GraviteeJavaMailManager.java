@@ -23,11 +23,13 @@ import io.gravitee.rest.api.model.parameters.Key;
 import io.gravitee.rest.api.model.parameters.ParameterReferenceType;
 import io.gravitee.rest.api.service.ParameterService;
 import io.gravitee.rest.api.service.common.GraviteeContext;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.net.ssl.SSLContext;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
@@ -148,6 +150,12 @@ public class GraviteeJavaMailManager implements EventListener<Key, Parameter> {
                 }
             }
         );
+
+        try {
+            String protocols = String.join(" ", SSLContext.getDefault().getSupportedSSLParameters().getProtocols());
+
+            properties.setProperty("mail.smtp.ssl.protocols", protocols);
+        } catch (NoSuchAlgorithmException e) {}
 
         return properties;
     }
