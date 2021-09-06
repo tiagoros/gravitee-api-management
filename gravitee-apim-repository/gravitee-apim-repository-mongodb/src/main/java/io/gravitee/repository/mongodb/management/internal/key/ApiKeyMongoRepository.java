@@ -36,7 +36,4 @@ public interface ApiKeyMongoRepository extends MongoRepository<ApiKeyMongo, Stri
 
     @Query("{ 'key': ?0, 'api': ?1 }")
     Collection<Object> findByKeyAndApi(String key, String api);
-
-    @Query("{ 'key': ?0, 'subscription': ?1 }")
-    Collection<Object> findByKeyAndSubscription(String key, String subscription);
 }

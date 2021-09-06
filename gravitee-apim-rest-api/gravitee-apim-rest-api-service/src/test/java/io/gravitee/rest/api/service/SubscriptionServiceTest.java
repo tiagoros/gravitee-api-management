@@ -19,7 +19,6 @@ import static io.gravitee.rest.api.service.impl.AbstractService.ENVIRONMENT_ADMI
 import static java.util.Arrays.asList;
 import static java.util.Collections.singleton;
 import static java.util.Collections.singletonList;
-import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.AdditionalAnswers.returnsFirstArg;
@@ -794,7 +793,7 @@ public class SubscriptionServiceTest {
 
         subscriptionService.close(SUBSCRIPTION_ID);
 
-        verify(apiKeyService).revoke("api-key", false);
+        verify(apiKeyService).revoke(apiKey,false);
         verify(notifierService).trigger(eq(ApiHook.SUBSCRIPTION_CLOSED), anyString(), anyMap());
         verify(notifierService).trigger(eq(ApplicationHook.SUBSCRIPTION_CLOSED), nullable(String.class), anyMap());
     }
@@ -934,8 +933,6 @@ public class SubscriptionServiceTest {
         when(plan.getApi()).thenReturn(API_ID);
         when(plan.getSecurity()).thenReturn(PlanSecurityType.API_KEY);
 
-        when(apiKeyService.exists(customApiKey)).thenReturn(false);
-
         // Stub
         when(subscriptionRepository.findById(SUBSCRIPTION_ID)).thenReturn(Optional.of(subscription));
         when(planService.findById(PLAN_ID)).thenReturn(plan);
@@ -953,40 +950,6 @@ public class SubscriptionServiceTest {
         assertEquals(SubscriptionStatus.ACCEPTED, subscriptionEntity.getStatus());
         assertEquals(USER_ID, subscriptionEntity.getProcessedBy());
         assertNotNull(subscriptionEntity.getProcessedAt());
-    }
-
-    @Test(expected = ApiKeyAlreadyExistingException.class)
-    public void shouldProcessWithExistingCustomApiKeyForAcceptedSubscription() throws Exception {
-        // Prepare data
-        final String customApiKey = "customApiKey";
-
-        ProcessSubscriptionEntity processSubscription = new ProcessSubscriptionEntity();
-        processSubscription.setId(SUBSCRIPTION_ID);
-        processSubscription.setAccepted(true);
-        processSubscription.setCustomApiKey(customApiKey);
-
-        Subscription subscription = new Subscription();
-        subscription.setApplication(APPLICATION_ID);
-        subscription.setPlan(PLAN_ID);
-        subscription.setStatus(Subscription.Status.PENDING);
-        subscription.setSubscribedBy(SUBSCRIBER_ID);
-
-        when(plan.getApi()).thenReturn(API_ID);
-        when(plan.getSecurity()).thenReturn(PlanSecurityType.API_KEY);
-
-        when(apiKeyService.exists(customApiKey)).thenReturn(true);
-
-        // Stub
-        when(subscriptionRepository.findById(SUBSCRIPTION_ID)).thenReturn(Optional.of(subscription));
-        when(planService.findById(PLAN_ID)).thenReturn(plan);
-        when(applicationService.findById(APPLICATION_ID)).thenReturn(application);
-        when(subscriptionRepository.update(any())).thenAnswer(returnsFirstArg());
-        final UserEntity subscriberUser = new UserEntity();
-        subscriberUser.setEmail(SUBSCRIBER_ID + "@acme.net");
-        when(userService.findById(SUBSCRIBER_ID)).thenReturn(subscriberUser);
-
-        // Run
-        final SubscriptionEntity subscriptionEntity = subscriptionService.process(processSubscription, USER_ID);
     }
 
     @Test(expected = PlanAlreadyClosedException.class)

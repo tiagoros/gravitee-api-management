@@ -188,7 +188,7 @@ public class ApiKeyServiceImpl extends TransactionalService implements ApiKeySer
     private ApiKey generateForSubscription(String subscription, String customApiKey) {
         SubscriptionEntity subscriptionEntity = subscriptionService.findById(subscription);
 
-        if (customApiKey != null && canCreate(customApiKey, subscriptionEntity.getApi(), subscriptionEntity.getApplication())) {
+        if (customApiKey != null && !canCreate(customApiKey, subscriptionEntity.getApi(), subscriptionEntity.getApplication())) {
             throw new ApiKeyAlreadyExistingException();
         }
 
@@ -361,21 +361,6 @@ public class ApiKeyServiceImpl extends TransactionalService implements ApiKeySer
     }
 
     @Override
-    public ApiKeyEntity findByKeyAndSubscription(String apiKey, String subscriptionId) {
-        try {
-            LOGGER.debug("Find an API Key by key {} and subscription {}", apiKey, subscriptionId);
-            ApiKey key = apiKeyRepository.findByKeyAndSubscription(apiKey, subscriptionId).orElseThrow(() -> new ApiKeyNotFoundException());
-            return convert(key);
-        } catch (TechnicalException ex) {
-            LOGGER.error("An error occurs while trying to find an API Key by key {} for subscriptionId {}", apiKey, subscriptionId, ex);
-            throw new TechnicalManagementException(
-                String.format("An error occurs while trying to find an API Key by key %s for subscriptionId %s", apiKey, subscriptionId),
-                ex
-            );
-        }
-    }
-
-    @Override
     public ApiKeyEntity update(ApiKeyEntity apiKeyEntity) {
         try {
             LOGGER.debug("Update API Key {}", apiKeyEntity.getKey());
@@ -438,7 +423,7 @@ public class ApiKeyServiceImpl extends TransactionalService implements ApiKeySer
 
     @Override
     public boolean canCreate(String apiKey, String apiId, String applicationId) {
-        LOGGER.debug("Check if an API Key can be create with key {}, for api {} and application {}", apiKey, apiId, applicationId);
+        LOGGER.debug("Check if an API Key can be created with key {}, for api {} and application {}", apiKey, apiId, applicationId);
         try {
             return apiKeyRepository
                 .findByKey(apiKey)
@@ -449,22 +434,14 @@ public class ApiKeyServiceImpl extends TransactionalService implements ApiKeySer
                         (existingKey.getApplication().equals(applicationId) && existingKey.getApi().equals(apiId))
                 );
         } catch (TechnicalException ex) {
-            LOGGER.error(
-                "An error occurs while checking if API Key {} can be created for api {} and application {}",
-                apiKey,
-                apiId,
-                applicationId,
-                ex
-            );
-            throw new TechnicalManagementException(
-                String.format(
+            String message = String.format(
                     "An error occurs while checking if API Key %s can be created for api %s and application %s",
                     apiKey,
                     apiId,
                     applicationId
-                ),
-                ex
             );
+            LOGGER.error(message, ex);
+            throw new TechnicalManagementException(message, ex);
         }
     }
 

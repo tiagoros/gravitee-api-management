@@ -106,13 +106,4 @@ public class MongoApiKeyRepository implements ApiKeyRepository {
     public Optional<ApiKey> findByKeyAndApi(String key, String api) throws TechnicalException {
         return internalApiKeyRepo.findByKeyAndApi(key, api).stream().findFirst().map(apiKey -> mapper.map(apiKey, ApiKey.class));
     }
-
-    @Override
-    public Optional<ApiKey> findByKeyAndSubscription(String key, String subscription) throws TechnicalException {
-        return internalApiKeyRepo
-            .findByKeyAndSubscription(key, subscription)
-            .stream()
-            .findFirst()
-            .map(apiKey -> mapper.map(apiKey, ApiKey.class));
-    }
 }

@@ -44,13 +44,7 @@ public class HttpApiKeyRepository extends AbstractRepository implements ApiKeyRe
 
     @Override
     public Optional<ApiKey> findByKeyAndApi(String key, String api) throws TechnicalException {
-        // TODO : why not implemented in BridgeService before ??
         return blockingGet(get(String.format("/apis/%s/keys/%s", key, api), BodyCodecs.optional(ApiKey.class)).send()).payload();
-    }
-
-    @Override
-    public Optional<ApiKey> findByKeyAndSubscription(String key, String subscription) throws TechnicalException {
-        throw new IllegalStateException();
     }
 
     @Override

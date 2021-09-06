@@ -128,6 +128,7 @@ public class BridgeService extends AbstractService {
             ApiKeysHandler apiKeysHandler = new ApiKeysHandler();
             applicationContext.getAutowireCapableBeanFactory().autowireBean(apiKeysHandler);
             bridgeRouter.post("/keys/_search").handler(apiKeysHandler::handle);
+            bridgeRouter.get("/apis/:apiId/keys/:key").handler(apiKeysHandler::findByKeyAndApi);
 
             // Subscriptions handler
             SubscriptionsHandler subscriptionsHandler = new SubscriptionsHandler();

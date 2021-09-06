@@ -53,15 +53,6 @@ public interface ApiKeyRepository {
     Optional<ApiKey> findByKeyAndApi(String key, String api) throws TechnicalException;
 
     /**
-     * Give the API Key from the given key and subscription
-     *
-     * @param key API key
-     * @param subscription Key subscription
-     * @return API Key
-     */
-    Optional<ApiKey> findByKeyAndSubscription(String key, String subscription) throws TechnicalException;
-
-    /**
      * Create a new API Key
      *
      * @param apiKey API Key

@@ -183,22 +183,4 @@ public class JdbcApiKeyRepository extends JdbcAbstractCrudRepository<ApiKey, Str
             throw new TechnicalException("Failed to find api key by key and api", ex);
         }
     }
-
-    @Override
-    public Optional<ApiKey> findByKeyAndSubscription(String key, String subscription) throws TechnicalException {
-        LOGGER.debug("JdbcApiKeyRepository.findByKeyAndSubscription({}, {})", key, subscription);
-        try {
-            return jdbcTemplate
-                .query(
-                    getOrm().getSelectAllSql() + " where key = ? and subscription = ?",
-                    getOrm().getRowMapper(),
-                    new String[] { key, subscription }
-                )
-                .stream()
-                .findFirst();
-        } catch (final Exception ex) {
-            LOGGER.error("Failed to find api key by key and subscription", ex);
-            throw new TechnicalException("Failed to find api key by key and subscription", ex);
-        }
-    }
 }
