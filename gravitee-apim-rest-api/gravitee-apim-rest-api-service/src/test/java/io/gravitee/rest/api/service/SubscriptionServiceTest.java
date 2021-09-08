@@ -793,7 +793,7 @@ public class SubscriptionServiceTest {
 
         subscriptionService.close(SUBSCRIPTION_ID);
 
-        verify(apiKeyService).revoke(apiKey,false);
+        verify(apiKeyService).revoke(apiKey, false);
         verify(notifierService).trigger(eq(ApiHook.SUBSCRIPTION_CLOSED), anyString(), anyMap());
         verify(notifierService).trigger(eq(ApplicationHook.SUBSCRIPTION_CLOSED), nullable(String.class), anyMap());
     }

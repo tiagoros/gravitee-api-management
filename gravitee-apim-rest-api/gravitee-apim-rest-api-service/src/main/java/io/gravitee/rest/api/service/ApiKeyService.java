@@ -34,6 +34,8 @@ public interface ApiKeyService {
 
     ApiKeyEntity renew(String subscription, String customApiKey);
 
+    void revoke(String keyId, boolean notify);
+
     void revoke(ApiKeyEntity apiKeyEntity, boolean notify);
 
     void revoke(String apiKey, String apiId, boolean notify);
